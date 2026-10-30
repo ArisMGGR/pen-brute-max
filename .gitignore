@@ -1,0 +1,29 @@
+# --- Python bytecode / caches ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Markov model cache (generated next to the corpus by markov.py) ---
+*.markov-*.pkl
+*.pkl
+
+# --- Wordlists / large corpora (not redistributed; download separately) ---
+rockyou.txt
+*.wordlist
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+
+# --- Environment / secrets (defensive; keep an example in git) ---
+.env
+.env.*
+!.env.example
+
+# --- IDE / editor / OS cruft ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
