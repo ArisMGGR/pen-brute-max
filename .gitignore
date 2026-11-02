@@ -17,10 +17,9 @@ rockyou.txt
 venv/
 env/
 
-# --- Environment / secrets (defensive; keep an example in git) ---
+# --- Environment / secrets (defensive) ---
 .env
 .env.*
-!.env.example
 
 # --- IDE / editor / OS cruft ---
 .vscode/
