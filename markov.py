@@ -16,9 +16,9 @@ plausibly stop. Confining the search to observed transitions keeps it on
 realistic strings and bounds the branching.
 """
 
+import json
 import math
 import os
-import pickle
 import time
 
 MARKOV_START = '\x02'      # sentinel for positions before the first char
@@ -44,20 +44,31 @@ def train_markov(path, order, max_lines=0):
             n += 1
             if max_lines and n >= max_lines:
                 break
-    # Plain dicts pickle cleanly and load fast.
+    # Plain dicts serialize cleanly to JSON and load fast.
     return {ctx: dict(nexts) for ctx, nexts in counts.items()}, n
 
 
 def train_or_load_markov(path, order, max_lines, verbose=True):
-    """Train the model, caching it next to the corpus for fast reuse."""
-    tag = f".markov-o{order}" + (f"-n{max_lines}" if max_lines else "") + ".pkl"
+    """Train the model, caching it next to the corpus for fast reuse.
+
+    The cache is JSON, not pickle: the model is a plain dict of string contexts
+    -> {char: count}, which JSON round-trips exactly. Using a non-executable
+    format means loading a cache file that happens to sit next to the corpus
+    can never run arbitrary code, even if it was placed there by someone else.
+    """
+    tag = f".markov-o{order}" + (f"-n{max_lines}" if max_lines else "") + ".json"
     cache = path + tag
     if (os.path.isfile(cache)
             and os.path.getmtime(cache) >= os.path.getmtime(path)):
         if verbose:
             print(f"[*] Loading cached Markov model: {cache}")
-        with open(cache, 'rb') as f:
-            return pickle.load(f)
+        try:
+            with open(cache, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (ValueError, OSError):
+            # Corrupt or unreadable cache: fall through and retrain.
+            if verbose:
+                print("[!] Cached model unreadable; retraining.")
 
     if verbose:
         print(f"[*] Training Markov model (order {order}) from {path} ...")
@@ -67,8 +78,8 @@ def train_or_load_markov(path, order, max_lines, verbose=True):
         print(f"[*] Trained on {n:,} words in {time.time() - t0:.1f}s "
               f"({len(model):,} contexts)")
     try:
-        with open(cache, 'wb') as f:
-            pickle.dump(model, f)
+        with open(cache, 'w', encoding='utf-8') as f:
+            json.dump(model, f)
         if verbose:
             print(f"[*] Cached model -> {cache}")
     except OSError:
@@ -129,23 +140,38 @@ def iter_markov(model, order, min_length, max_length, top=0, levels=10,
         firsts = [ch for ch, _lvl in trans.get(pad, []) if ch != MARKOV_END]
         allowed_first = set(firsts[worker_id::num_workers])
 
-    def emit(s, ctx, remaining):
-        node = trans.get(ctx)
-        if not node:
+    def emit(total):
+        # Iterative depth-first walk that yields in the same order a recursive
+        # descent would, but keeps its own explicit stack so a large max_length
+        # cannot overflow the interpreter's recursion limit (emit used to recurse
+        # once per candidate character; a --max above ~1000 crashed).
+        root_node = trans.get(pad)
+        if not root_node:
             return
-        slen = len(s)
-        root = slen == 0
-        for ch, lvl in node:
-            if lvl > remaining:
-                break                              # sorted: the rest are rarer
-            if ch == MARKOV_END:
-                if lvl == remaining and slen >= min_length:
-                    yield s.encode('utf-8', 'ignore')
-            elif slen < max_length:
-                if root and allowed_first is not None and ch not in allowed_first:
-                    continue                       # another worker owns this first char
-                yield from emit(s + ch, (pad + s + ch)[-order:], remaining - lvl)
+        # Each frame: [s, remaining, iterator over that context's (ch, lvl)].
+        stack = [["", total, iter(root_node)]]
+        while stack:
+            s, remaining, it = stack[-1]
+            slen = len(s)
+            descended = False
+            for ch, lvl in it:
+                if lvl > remaining:
+                    break                          # sorted: the rest are rarer
+                if ch == MARKOV_END:
+                    if lvl == remaining and slen >= min_length:
+                        yield s.encode('utf-8', 'ignore')
+                elif slen < max_length:
+                    if slen == 0 and allowed_first is not None and ch not in allowed_first:
+                        continue                   # another worker owns this first char
+                    child = s + ch
+                    child_node = trans.get((pad + child)[-order:])
+                    if child_node:
+                        stack.append([child, remaining - lvl, iter(child_node)])
+                        descended = True
+                        break                      # walk the child before the rest
+            if not descended:
+                stack.pop()
 
     max_total = (levels - 1) * (max_length + 1)
     for total in range(max_total + 1):
-        yield from emit("", pad, total)
+        yield from emit(total)

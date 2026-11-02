@@ -40,7 +40,18 @@ def make_hash_verifier(algo, target_hex):
     except ValueError:
         raise ValueError(f"Target hash is not valid hex: {target_hex!r}")
 
-    digest_size = hasher().digest_size
+    try:
+        digest_size = hasher().digest_size
+    except TypeError:
+        # Name exists in hashlib but isn't a zero-arg hash constructor
+        # (e.g. new, scrypt, pbkdf2_hmac).
+        raise ValueError(f"Unknown hash algorithm: {algo}")
+    if digest_size == 0:
+        # Variable-length hashes (shake_128/shake_256) report digest_size 0 and
+        # need a length argument at .digest(); they can't be matched against a
+        # fixed target digest here, so reject them cleanly instead of crashing
+        # in the hot loop.
+        raise ValueError(f"{algo} is a variable-length hash and is not supported")
     if len(target) != digest_size:
         raise ValueError(
             f"{algo} produces {digest_size}-byte digests, but the target is "

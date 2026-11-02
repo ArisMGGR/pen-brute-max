@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 
 # --- Markov model cache (generated next to the corpus by markov.py) ---
+*.markov-*.json
 *.markov-*.pkl
 *.pkl
 
@@ -27,3 +28,9 @@ env/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# --- Local audit reports (not published) ---
+tests/FINDINGS.md
+tests/LOG.md
+tests/PASSES.md
+tests/VERIFY.md
