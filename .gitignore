@@ -21,6 +21,18 @@ env/
 .env
 .env.*
 
+# --- Test / coverage / packaging output ---
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+build/
+dist/
+*.log
+*.db
+*.sqlite
+*.sqlite3
+
 # --- IDE / editor / OS cruft ---
 .vscode/
 .idea/
