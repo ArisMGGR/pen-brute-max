@@ -135,6 +135,14 @@ def main(argv=None):
             p.error(f"Training corpus not found: {args.wordlist}")
         if args.markov_order < 1:
             p.error("--markov-order must be >= 1")
+        if args.markov_top < 0:
+            p.error("--markov-top must be >= 0")
+        if args.markov_train_lines < 0:
+            p.error("--markov-train-lines must be >= 0")
+        if args.min_length < 1:
+            p.error("--min must be >= 1")
+        if args.max_length < args.min_length:
+            p.error("--max must be >= --min")
 
         mode = 'markov'
         total = None

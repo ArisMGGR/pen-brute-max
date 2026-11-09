@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 
 # --- Markov model cache (generated next to the corpus by markov.py) ---
+*.markov-*.json
 *.markov-*.pkl
 *.pkl
 
@@ -16,10 +17,21 @@ rockyou.txt
 venv/
 env/
 
-# --- Environment / secrets (defensive; keep an example in git) ---
+# --- Environment / secrets (defensive) ---
 .env
 .env.*
-!.env.example
+
+# --- Test / coverage / packaging output ---
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+build/
+dist/
+*.log
+*.db
+*.sqlite
+*.sqlite3
 
 # --- IDE / editor / OS cruft ---
 .vscode/
@@ -27,3 +39,9 @@ env/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# --- Local audit reports (not published) ---
+tests/FINDINGS.md
+tests/LOG.md
+tests/PASSES.md
+tests/VERIFY.md

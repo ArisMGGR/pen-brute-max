@@ -11,6 +11,11 @@ parallelism.
 
 No third-party dependencies — Python 3.8+ standard library only.
 
+> **Wordlist not included.** The examples below use `rockyou.txt`, which is
+> gitignored and not redistributed here. Download it separately (it ships with
+> Kali at `/usr/share/wordlists/rockyou.txt.gz`, or fetch it from the SecLists
+> project) and place it in the project root — or pass any wordlist path you like.
+
 ---
 
 ## Quick start
@@ -77,7 +82,8 @@ The banner shows how many candidates this adds.
 ### 4. Markov (`--markov`, with a wordlist as training data)
 Trains a character-transition model on the wordlist, then emits guesses in
 **likelihood order** (OMEN-style). Finds human-like passwords early *without*
-needing them to be in a list — but it never exhausts, so cap it.
+needing them to be in a list — on a real corpus it won't finish in any
+practical time, so cap it.
 
 ```bash
 python brute.py --hash md5:... --wordlist rockyou.txt --markov --markov-order 3 \
@@ -87,7 +93,7 @@ python brute.py --hash md5:... --wordlist rockyou.txt --markov --markov-order 3 
 - `--markov-order K` — context length (2 default; 3 is sharper; 4+ overfits)
 - `--markov-top N` — keep only the N likeliest next-chars per context
 - `--markov-train-lines N` — train on the first N lines only
-- The trained model is cached next to the corpus (`rockyou.txt.markov-o2.pkl`)
+- The trained model is cached next to the corpus (`rockyou.txt.markov-o2.json`)
 
 > In Markov mode `--wordlist` is **training data**, not a guess list: the tool
 > learns what human passwords look like, then generates its own.
@@ -99,7 +105,7 @@ python brute.py --hash md5:... --wordlist rockyou.txt --markov --markov-order 3 
 | Flag | Meaning |
 |---|---|
 | `--workers N` / `-j N` | parallel worker processes; `0` = all cores (default 1) |
-| `--max-attempts N` | cap the run (recommended for Markov, which won't stop on its own) |
+| `--max-attempts N` | cap the run (recommended for Markov, whose ordered keyspace is astronomically large) |
 | `--quiet` / `-q` | suppress progress lines |
 
 Parallel runs partition the search (by first character, or round-robin lines)
@@ -148,3 +154,14 @@ Every mode produces **byte** candidates that flow into one shared loop
 (`core.run_attack`), which hashes each and compares the raw digest to the
 target. That decoupling of *candidate generation* from *checking* is why the
 same loop serves brute force, wordlists, and Markov alike.
+
+---
+
+## Tests
+
+A small smoke-test suite (standard-library `unittest`, no extra dependencies)
+covers one path per mode plus the audited edge cases. From the project root:
+
+```bash
+python -m unittest discover -s tests
+```
